@@ -1,21 +1,6 @@
- AOS.init({
- 	duration: 800,
- 	easing: 'slide'
- });
-
 (function($) {
 
 	"use strict";
-
-	$(window).stellar({
-    responsive: true,
-    parallaxBackgrounds: true,
-    parallaxElements: true,
-    horizontalScrolling: false,
-    hideDistantElements: false,
-    scrollProperty: 'scroll'
-  });
-
 
 	var fullHeight = function() {
 
@@ -27,18 +12,18 @@
 	};
 	fullHeight();
 
-	// loader
-	var loader = function() {
-		setTimeout(function() { 
-			if($('#ftco-loader').length > 0) {
-				$('#ftco-loader').removeClass('show');
-			}
-		}, 1);
-	};
-	loader();
+	if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+		$.Scrollax();
+	}
 
-	// Scrollax
-   $.Scrollax();
+	var $backToTop = $('.back-to-top');
+	$(window).on('scroll', function () {
+		$backToTop.toggleClass('is-visible', $(this).scrollTop() > 600);
+	});
+	$backToTop.on('click', function () {
+		$('html, body').animate({ scrollTop: 0 }, 500, 'easeInOutExpo');
+		$('#main-content').attr('tabindex', '-1').trigger('focus');
+	});
 
 
 
@@ -66,16 +51,27 @@
 	var onePageClick = function() {
 
 
-		$(document).on('click', '#ftco-nav a[href^="#"]', function (event) {
-	    event.preventDefault();
+		$(document).on('click', '#ftco-nav a[href^="#"], a.btn[href^="#"], a.freelance-pill', function (event) {
+			var $target = $($.attr(this, 'href'));
+			if (!$target.length) return;
+			event.preventDefault();
 
-	    var href = $.attr(this, 'href');
+			var subject = $(this).data('subject');
+			if (subject) {
+				$('#subject').val(subject);
+			}
 
-	    $('html, body').animate({
-	        scrollTop: $($.attr(this, 'href')).offset().top - 70
-	    }, 500, function() {
-	    	// window.location.hash = href;
-	    });
+			var scrollToTarget = function () {
+				$('html, body').animate({ scrollTop: $target.offset().top - 70 }, 500);
+			};
+
+			// on mobile the open menu pushes the page down, so measure only after it has closed
+			var $menu = $('#ftco-nav');
+			if ($menu.hasClass('show')) {
+				$menu.one('hidden.bs.collapse', scrollToTarget).collapse('hide');
+			} else {
+				scrollToTarget();
+			}
 		});
 
 	};
@@ -84,27 +80,38 @@
 	
 
 	var carousel = function() {
+		var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		$('.training-carousel').owlCarousel({
+			loop: true,
+			margin: 30,
+			autoplay: !reduceMotion,
+			autoplayTimeout: 4000,
+			autoplayHoverPause: true,
+			smartSpeed: 600,
+			nav: true,
+			dots: true,
+			navText: ['<span aria-hidden="true">&#8249;</span>', '<span aria-hidden="true">&#8250;</span>'],
+			// stagePadding sized per Bootstrap container width so each side peek shows ~25% of a card
+			responsive: {
+				0: { items: 1, stagePadding: 65, margin: 15 },
+				450: { items: 1, stagePadding: 85, margin: 15 },
+				576: { items: 1, stagePadding: 95, margin: 15 },
+				768: { items: 2, stagePadding: 90 },
+				992: { items: 3, stagePadding: 88 },
+				1200: { items: 3, stagePadding: 100 }
+			}
+		});
+
+		// the hero is a single static slide; owl is kept only because the template's hero CSS depends on its classes
 		$('.home-slider').owlCarousel({
-	    loop:true,
-	    autoplay: true,
-	    margin:0,
-	    animateOut: 'fadeOut',
-	    animateIn: 'fadeIn',
-	    nav:false,
-	    autoplayHoverPause: false,
-	    items: 1,
-	    navText : ["<span class='ion-md-arrow-back'></span>","<span class='ion-chevron-right'></span>"],
-	    responsive:{
-	      0:{
-	        items:1
-	      },
-	      600:{
-	        items:1
-	      },
-	      1000:{
-	        items:1
-	      }
-	    }
+			items: 1,
+			loop: false,
+			autoplay: false,
+			nav: false,
+			dots: false,
+			mouseDrag: false,
+			touchDrag: false,
+			pullDrag: false
 		});
 	};
 	carousel();
@@ -269,9 +276,35 @@
     fixedContentPos: false
   });
 
+  $('#footer-year').text(new Date().getFullYear());
 
+  $('#contact-form').on('submit', function (e) {
+    e.preventDefault();
+    var form = this;
+    var $button = $(form).find('button[type="submit"]');
+    var $status = $(form).find('.form-status');
 
+    $button.prop('disabled', true).text('Sending...');
+    $status.removeClass('is-success is-error').text('');
 
+    fetch(form.action, {
+      method: 'POST',
+      headers: { 'Accept': 'application/json' },
+      body: new FormData(form)
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (!data.success) throw new Error(data.message);
+        form.reset();
+        $status.addClass('is-success').text("Thanks! Your message has been sent. I'll get back to you soon.");
+      })
+      .catch(function () {
+        $status.addClass('is-error').text('Sorry, something went wrong. Please email me directly at shuvadeepghosh.bonki@gmail.com.');
+      })
+      .then(function () {
+        $button.prop('disabled', false).text('Send Message');
+      });
+  });
 
 })(jQuery);
 
